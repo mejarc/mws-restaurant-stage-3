@@ -4,7 +4,7 @@ let restaurants,
 var map;
 var markers = [];
 
-
+let staticMap = document.getElementById('static');
 /**
  * Fetch neighborhoods and cuisines as soon as the page is loaded.
  */
@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
   document.querySelector('nav h1').focus();
 });
 
+staticMap.addEventListener('click', () => {
+  toggleMap('home');
+});
 /**
  * Fetch all neighborhoods and set their HTML.
  */
@@ -73,6 +76,7 @@ const fillCuisinesHTML = (cuisines = self.cuisines) => {
 /**
  * Initialize Google map, called from HTML.
  */
+// todo: add event listener
 initMaps('home');
 /**
  * Update page and map for current restaurants.
@@ -121,6 +125,7 @@ const fillRestaurantsHTML = (restaurants = self.restaurants) => {
     ul.append(createRestaurantHTML(restaurant));
   });
   addMarkersToMap();
+  lazyLoadImages();
 };
 
 /**

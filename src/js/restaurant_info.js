@@ -1,9 +1,14 @@
 let restaurant,
     map;
 
+let staticMap = document.getElementById('static');
 /**
  * Initialize Google map, called from HTML.
  */
+staticMap.addEventListener('click', () => {
+  toggleMap();
+});
+
 initMaps(null);
 /**
  * Get current restaurant from page URL.
@@ -26,6 +31,7 @@ const fetchRestaurantFromURL = (callback) => {
       }
       fillRestaurantHTML();
       callback(null, restaurant);
+      lazyLoadImages();
     });
   }
 };
