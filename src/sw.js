@@ -14,8 +14,8 @@ var contentCache = [
   'css/all.css',
   './placeholder.png'
 ];
-var staticCacheName = 'stage-2-restaurants';
-var imagesCacheName = 'stage-2-content-images';
+var staticCacheName = 'stage-3-restaurants';
+var imagesCacheName = 'stage-3-content-images';
 var allCaches = [
   staticCacheName,
   imagesCacheName
@@ -54,7 +54,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.filter(cacheName => {
-          return cacheName.startsWith('stage-2-') &&
+          return cacheName.startsWith('stage-3-') &&
             !allCaches.includes(cacheName);
         }).map(cacheName => {
           return caches.delete(cacheName);
