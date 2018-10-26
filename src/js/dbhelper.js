@@ -12,7 +12,7 @@ class DBHelper {
     return 'RestaurantStore';
   }
   static get DATABASE_URL() {
-    const port = 1337; // Stage 2 server port
+    const port = 1337; // Stage 3 server port
     return `http://localhost:${port}/restaurants`;
   }
   static get DATABASE_VERSION() {
@@ -161,7 +161,7 @@ class DBHelper {
    * Restaurant page URL.
    */
   static urlForRestaurant(restaurant) {
-    return (`./restaurant.html?id=${restaurant.id}`);
+    return (`./restaurants/${restaurant.id}`);
   }
 
   /**
