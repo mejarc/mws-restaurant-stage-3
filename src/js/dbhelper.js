@@ -16,9 +16,11 @@ class DBHelper {
     return `http://localhost:${port}/restaurants`;
   }
   static get DATABASE_VERSION() {
-    return 1;
+    return 3;
   }
-
+  static get REVIEW_STORE() {
+    return 'ReviewStore';
+  }
   static fetchError(err, asset) {
     console.error(`ERROR (${err}) when attempting to fetch ${asset}`);
   }
@@ -199,12 +201,12 @@ class DBHelper {
 
     idb.onupgradeneeded = evt => {
       let db = evt.target.result;
-      let store = db.createObjectStore(DBHelper.REST_STORE, {
+      let store = db.createObjectStore(DBHelper.REVIEW_STORE, {
         keyPath: 'id'
       });
-      store.createIndex('byId', 'id');
+      store.createIndex('restaurant_id', 'id');
       store.transaction.oncomplete = () => {
-        let reviewStore = db.transaction([DBHelper.REST_STORE], 'readwrite').objectStore(DBHelper.REST_STORE);
+        let reviewStore = db.transaction([DBHelper.REVIEW_STORE], 'readwrite').objectStore(DBHelper.REVIEW_STORE);
         // take data and place into store
         for (let i = 0; i < restaurants.length; i++) {
           reviewStore.put(restaurants[i]);
