@@ -281,11 +281,12 @@ class DBHelper {
    * get reviews for specified restaurant
    */
   static getReviewsForRestaurant(id) {
-      DBHelper.fetchReviews((error, id) => {
-          if (error) {
-            callback(error, null);
-          } else {
-            callback(null, id);
-          }
-        };
+    DBHelper.fetchReviews((error, id) => {
+      if (error) {
+        callback(error, null);
+      } else {
+        callback(null, id);
       }
+    });
+  }
+}
