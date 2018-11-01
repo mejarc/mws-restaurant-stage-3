@@ -15,6 +15,10 @@ class DBHelper {
     const port = 1337; // Stage 3 server port
     return `http://localhost:${port}/restaurants`;
   }
+  static get REVIEW_URL() {
+    const port = 1337;
+    return `http://localhost:${port}/reviews`;
+  }
   static get DATABASE_VERSION() {
     return 3;
   }
@@ -32,8 +36,8 @@ class DBHelper {
     // If the data are there, add to the database. 
     // If the server fails, use the stored data 
     fetch(DBHelper.DATABASE_URL, {
-      method: 'GET'
-    }).then(response => response.json())
+        method: 'GET'
+      }).then(response => response.json())
       .then(data => {
         // take fresh network data and store in local DB
         DBHelper.createDb(data);
@@ -54,20 +58,24 @@ class DBHelper {
   /**
    * Fetch a restaurant by its ID.
    */
-  static fetchRestaurantById(id, callback) {
-    // fetch all restaurants with proper error handling.
-    DBHelper.fetchRestaurants((error, restaurants) => {
-      if (error) {
-        callback(error, null);
-      } else {
-        const restaurant = restaurants.find(r => r.id == id);
-        if (restaurant) { // Got the restaurant
-          callback(null, restaurant);
-        } else { // Restaurant does not exist in the database
-          callback('Restaurant does not exist', null);
+  static fetchRestaurantById(id) {
+    // fetch restaurants first. Note that
+    // api endpoint is different. Success will
+    // result in storing reviews.
+    return fetch(`${DBHelper.REVIEW_URL}/?restaurant_id=${id}`)
+      .then(response => {
+        if (!response.ok) {
+          return Promise.reject(`Reviews for ${id} could not be fetched from network.`);
         }
-      }
-    });
+        return response.json();
+      }).then(fetchedReviews => {
+        DBHelper.putReviews(fetchedReviews);
+        return fetchedReviews;
+      }).catch(fetchError => {
+        // use DB if fetching fails
+        console.log(`Fetching reviews failed, so let's try idb`);
+        return DBHelper.getReviewsForRestaurant(id);
+      });
   }
 
   /**
@@ -201,17 +209,83 @@ class DBHelper {
 
     idb.onupgradeneeded = evt => {
       let db = evt.target.result;
+      let store = db.createObjectStore(DBHelper.REST_STORE, {
+        keyPath: 'id'
+      });
+      store.createIndex('byId', 'id');
+      store.transaction.oncomplete = () => {
+        let restStore = db.transaction([DBHelper.REST_STORE], 'readwrite').objectStore(DBHelper.REST_STORE);
+        // take data and place into store
+        for (let i = 0; i < restaurants.length; i++) {
+          restStore.put(restaurants[i]);
+        }
+      };
+    };
+  }
+  /**
+   * Save new restaurant review(s) to the database
+   */
+  static putReviews(reviews) {
+    // if there is only one review, still treat 
+    // it as an array
+    // TODO: why not use typeof?
+    if (!reviews.push) reviews = [reviews];
+    let idb = indexedDB.open(DBHelper.REST_DB, DBHelper.DATABASE_VERSION);
+    idb.onerror = error => {
+      console.error(`ERROR ${error} when trying to open review store.`);
+    };
+    idb.onupgradeneeded = evt => {
+      let db = evt.target.result;
       let store = db.createObjectStore(DBHelper.REVIEW_STORE, {
         keyPath: 'id'
       });
       store.createIndex('restaurant_id', 'id');
       store.transaction.oncomplete = () => {
         let reviewStore = db.transaction([DBHelper.REVIEW_STORE], 'readwrite').objectStore(DBHelper.REVIEW_STORE);
-        // take data and place into store
-        for (let i = 0; i < restaurants.length; i++) {
-          reviewStore.put(restaurants[i]);
+        // take review data and place into store
+        for (let i = 0; i < reviews.length; i++) {
+          reviewStore.put(reviews[i]);
         }
       };
     };
   }
-}
+  /**
+   * Fetch reviews from network or DB
+   */
+  static fetchReviews(id, callback) {
+    // try to get reviews online first.
+    // stow them in the database once received.
+    // if offline, use stored data
+    fetch(DBHelper.DATABASE_URL, {
+        method: 'GET'
+      }).then(response => response.json())
+      .then(data => {
+        DBHelper.putReviews(data);
+        callback(null, data);
+      }).catch(() => {
+        // obtaining data from review store in DB
+        let idb = indexedDB.open(DBHelper.REST_DB, DBHelper.DATABASE_VERSION);
+        idb.onsuccess = evt => {
+          let db = evt.target.result;
+          let tx = db.transaction(DBHelper.REVIEW_STORE);
+          let store = tx.objectStore(DBHelper.REVIEW_STORE);
+          let request = store.getAll(Number(id));
+          request.onsuccess = () => {
+            callback(null, request.result);
+          }
+        }
+      });
+
+  }
+  /**
+   * get reviews for specified restaurant
+   */
+  static getReviewsForRestaurant(id) {
+      DBHelper.fetchReviews((error, id) => {
+          if (error) {
+            callback(error, null);
+          } else {
+            callback(null, id);
+          }
+        };
+      }
