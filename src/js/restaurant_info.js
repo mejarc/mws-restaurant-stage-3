@@ -1,3 +1,5 @@
+import favoriteButton from './favorite-button';
+
 let restaurant,
     map;
 
@@ -51,6 +53,9 @@ const fillRestaurantHTML = (restaurant = self.restaurant) => {
 
   const cuisine = document.getElementById('restaurant-cuisine');
   cuisine.innerHTML = restaurant.cuisine_type;
+
+  const favButtonContainer = document.getElementById('fav-button-container');
+  favButtonContainer.append(favoriteButton(restaurant));
 
   container.insertBefore(picture, cuisine);
 
