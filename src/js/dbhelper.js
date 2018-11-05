@@ -200,7 +200,7 @@ class DBHelper {
    * Create local database, save restaurant
    * data as store.
    */
-  static createDb(restaurants) {
+  static createDb(restaurants, forceUpdate = false) {
     let idb = indexedDB.open(DBHelper.REST_DB, DBHelper.DATABASE_VERSION);
 
     idb.onerror = error => {
@@ -217,7 +217,9 @@ class DBHelper {
         let restStore = db.transaction([DBHelper.REST_STORE], 'readwrite').objectStore(DBHelper.REST_STORE);
         // take data and place into store
         for (let i = 0; i < restaurants.length; i++) {
-          restStore.put(restaurants[i]);
+          if (forceUpdate) {
+            restStore.put(restaurants[i]);
+          }
         }
       };
     };
@@ -228,65 +230,90 @@ class DBHelper {
   static putReviews(reviews) {
     // if there is only one review, still treat 
     // it as an array
-    // TODO: why not use typeof?
     if (!reviews.push) reviews = [reviews];
     let idb = indexedDB.open(DBHelper.REST_DB, DBHelper.DATABASE_VERSION);
     idb.onerror = error => {
-      console.error(`ERROR ${error} when trying to open review store.`);
+      console.error(`ERROR ${error} when trying to open restaurant database.`);
     };
-    idb.onupgradeneeded = evt => {
+    idb.success = evt => {
       let db = evt.target.result;
-      let store = db.createObjectStore(DBHelper.REVIEW_STORE, {
-        keyPath: 'id'
-      });
-      store.createIndex('restaurant_id', 'id');
-      store.transaction.oncomplete = () => {
-        let reviewStore = db.transaction([DBHelper.REVIEW_STORE], 'readwrite').objectStore(DBHelper.REVIEW_STORE);
-        // take review data and place into store
-        for (let i = 0; i < reviews.length; i++) {
-          reviewStore.put(reviews[i]);
-        }
-      };
-    };
-  }
-  /**
-   * Fetch reviews from network or DB
-   */
-  static fetchReviews(id, callback) {
-    // try to get reviews online first.
-    // stow them in the database once received.
-    // if offline, use stored data
-    fetch(DBHelper.DATABASE_URL, {
-        method: 'GET'
-      }).then(response => response.json())
-      .then(data => {
-        DBHelper.putReviews(data);
-        callback(null, data);
-      }).catch(() => {
-        // obtaining data from review store in DB
-        let idb = indexedDB.open(DBHelper.REST_DB, DBHelper.DATABASE_VERSION);
-        idb.onsuccess = evt => {
-          let db = evt.target.result;
-          let tx = db.transaction(DBHelper.REVIEW_STORE);
-          let store = tx.objectStore(DBHelper.REVIEW_STORE);
-          let request = store.getAll(Number(id));
-          request.onsuccess = () => {
-            callback(null, request.result);
-          }
-        }
-      });
-
-  }
-  /**
-   * get reviews for specified restaurant
-   */
-  static getReviewsForRestaurant(id) {
-    DBHelper.fetchReviews((error, id) => {
-      if (error) {
-        callback(error, null);
-      } else {
-        callback(null, id);
+      let store = db.transaction([DBHelper.REVIEW_STORE], 'readwrite').objectStore(DBHelper.REVIEW_STORE);
+      // take review data and place into store
+      for (let i = 0; i < reviews.length; i++) {
+        store.put(reviews[i]);
       }
+    };
+  };
+}
+/** 
+ * Update restaurant data, which can be forced based on 2nd parameter.
+ */
+static putRestaurants(restaurants, forceUpdate = false) {
+  // check that there's an array of data
+  if (!restaurants.push) restaurants = [restaurants];
+  let idb = indexedDB.open(DBHelper.REST_DB, DBHelper.DATABASE_VERSION);
+  idb.onerror = error => {
+    console.error(`ERROR ${error} when trying to open restaurant database.`);
+  };
+  idb.onsuccess = evt => {
+    let db = evt.target.result;
+    let store = db.transaction([DBHelper.REST_STORE], 'readwrite').objectStore(DBHelper.REST_STORE);
+    // check out the record for this restaurant. If there isn't a 
+    // record, or if the online data are newer, put it in the database.
+    Promise.all(restaurants.map(networkRestaurant => {
+      return store.get(networkRestaurant.id)
+        .then(idbRestaurant => {
+          if (forceUpdate) return store.put(networkRestaurant);
+          if (!idbRestaurant || new Date(networkRestaurant.updatedAt) > new Date(idbRestaurant.updatedAt)) {
+            return store.put(networkRestaurant);
+          }
+        });
+    })).then(function () {
+      console.log(`Record for ${restaurant.id} updated.`);
     });
   }
 }
+/**
+ * Fetch reviews from network or DB
+ */
+static fetchReviews(id, callback) {
+  // try to get reviews online first.
+  // stow them in the database once received.
+  // if offline, use stored data
+  fetch(DBHelper.DATABASE_URL, {
+      method: 'GET'
+    }).then(response => response.json())
+    .then(data => {
+      DBHelper.putReviews(data);
+      callback(null, data);
+    }).catch(() => {
+      // obtaining data from review store in DB
+      let idb = indexedDB.open(DBHelper.REST_DB, DBHelper.DATABASE_VERSION);
+      idb.onsuccess = evt => {
+        let db = evt.target.result;
+        let tx = db.transaction(DBHelper.REVIEW_STORE);
+        let store = tx.objectStore(DBHelper.REVIEW_STORE);
+        let request = store.getAll(Number(id));
+        request.onsuccess = () => {
+          callback(null, request.result);
+        }
+      }
+    });
+
+}
+/**
+ * get reviews for specified restaurant
+ */
+static getReviewsForRestaurant(id) {
+  DBHelper.fetchReviews((error, id) => {
+    if (error) {
+      callback(error, null);
+    } else {
+      callback(null, id);
+    }
+  });
+}
+}
+export {
+  DBHelper
+};

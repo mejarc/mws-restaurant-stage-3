@@ -1,4 +1,6 @@
-let restaurants,
+import favoriteButton from './favorite-button';
+
+
   neighborhoods,
   cuisines;
 var map;
@@ -156,6 +158,9 @@ const createRestaurantHTML = (restaurant) => {
   more.innerHTML = 'View Details';
   more.href = href;
   li.append(more);
+
+  const favButton = favoriteButton(restaurant);
+  li.append(favButton);
 
   return li;
 };

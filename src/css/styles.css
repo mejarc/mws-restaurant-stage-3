@@ -90,7 +90,9 @@ object {
   padding: .25em .5em;
 }
 /* ====================== Main ====================== */
-
+.fav {
+  /* TODO: style favorite button */
+}
 #maincontent {
   background-color: #f3f3f3;
   min-height: 100%;
